@@ -3,39 +3,39 @@ import Emitter from './Emitter'
 
 export default {
 
-  install (Vue, connection, opts = {}) {
+  install (app, connection, opts = {}) {
     if (!connection) { throw new Error('[vue-native-socket] cannot locate connection') }
 
     let observer = null
 
     opts.$setInstance = (wsInstance) => {
-      Vue.prototype.$socket = wsInstance
+      app.config.globalProperties.$socket = wsInstance
     }
 
     if (opts.connectManually) {
-      Vue.prototype.$connect = (connectionUrl = connection, connectionOpts = opts) => {
+      app.config.globalProperties.$connect = (connectionUrl = connection, connectionOpts = opts) => {
         connectionOpts.$setInstance = opts.$setInstance
         observer = new Observer(connectionUrl, connectionOpts)
-        Vue.prototype.$socket = observer.WebSocket
+        app.config.globalProperties.$socket = observer.WebSocket
       }
 
-      Vue.prototype.$disconnect = () => {
+      app.config.globalProperties.$disconnect = () => {
         if (observer && observer.reconnection) { observer.reconnection = false }
-        if (Vue.prototype.$socket) {
-          Vue.prototype.$socket.close()
-          delete Vue.prototype.$socket
+        if (app.config.globalProperties.$socket) {
+          app.config.globalProperties.$socket.close()
+          delete app.config.globalProperties.$socket
         }
       }
     } else {
       observer = new Observer(connection, opts)
-      Vue.prototype.$socket = observer.WebSocket
+      app.config.globalProperties.$socket = observer.WebSocket
     }
     const hasProxy = typeof Proxy !== 'undefined' && typeof Proxy === 'function' && /native code/.test(Proxy.toString())
 
-    Vue.mixin({
+    app.mixin({
       created () {
-        let vm = this
-        let sockets = this.$options['sockets']
+        const vm = this
+        const sockets = this.$options.sockets
 
         if (hasProxy) {
           this.$options.sockets = new Proxy({}, {
@@ -66,9 +66,9 @@ export default {
           }
         }
       },
-      beforeDestroy () {
+      beforeUnmount () {
         if (hasProxy) {
-          let sockets = this.$options['sockets']
+          const sockets = this.$options.sockets
 
           if (sockets) {
             Object.keys(sockets).forEach((key) => {
